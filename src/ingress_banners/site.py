@@ -143,7 +143,7 @@ def _font(size: int, bold: bool = False):
 
 def write_preview(banners: list[dict], agent: str, out: Path) -> tuple[str, str]:
     """The link preview image (1200 x 630) and its description."""
-    count = sum(1 for b in banners if not b.get('single'))
+    count = sum(1 for b in banners if not b.get('single') and b['status'] != 'review')
     missions = sum(b['count'] for b in banners)
     W, H, bg = 1200, 630, (11, 16, 15)
     im = Image.new('RGB', (W, H), bg)

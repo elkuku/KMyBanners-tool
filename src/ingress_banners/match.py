@@ -54,19 +54,12 @@ def match_rows(screen: list[np.ndarray], candidates: list[Candidate], threshold:
 def group(matches: list[RowMatch]) -> list[dict]:
     """Banners in screenshot order: consecutive rows of the same banner form one entry;
     rows of a banner that come back later (missions done at another time) join its entry.
-    Unmatched rows form entries with id None (one per run of rows)."""
+    Every unmatched row is an entry of its own (id None): the agent checks them one by one."""
     entries: list[dict] = []
     by_id: dict[str, dict] = {}
-    prev = None
     for m in matches:
         if m.id is None:
-            if prev is not None and prev['id'] is None and prev['rows'][-1] == m.row - 1:
-                prev['rows'].append(m.row)
-            else:
-                prev = {'id': None, 'rows': [m.row], 'dist': [m.dist]}
-                entries.append(prev)
-                continue
-            prev['dist'].append(m.dist)
+            entries.append({'id': None, 'rows': [m.row], 'dist': [m.dist]})
             continue
         e = by_id.get(m.id)
         if e is None:
@@ -76,7 +69,6 @@ def group(matches: list[RowMatch]) -> list[dict]:
         e['rows'].append(m.row)
         e['dist'].append(m.dist)
         e['second'].append(m.second)
-        prev = e
     return entries
 
 

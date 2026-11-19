@@ -50,7 +50,10 @@ const SPECOPS=[[500,'black','Onyx'],[200,'platinum','Platinum'],[100,'gold','Gol
 // and, as in AgentTools, "X n" when the onyx value was reached n times (from 2)
 const missionCount=B.reduce((a,b)=>a+b.count,0), specops=SPECOPS.find(([n])=>missionCount>=n);
 const onyx=Math.floor(missionCount/SPECOPS[0][0]);
-document.getElementById('stats').innerHTML=[[B.filter(b=>!b.single).length,'banners'],[missionCount,'missions']]
+// Rows still to check are not counted as banners (their missions are)
+const toCheck=B.filter(b=>b.status==='review').length;
+document.getElementById('stats').innerHTML=[[B.filter(b=>!b.single&&b.status!=='review').length,'banners'],[missionCount,'missions'],
+  ...(toCheck?[[toCheck,'to check']]:[])]
   .map(([n,l])=>`<div><b>${n.toLocaleString()}</b><small>${l}</small></div>`).join('')
   +(specops?`<img class="medal" src="medals/specops-${specops[1]}.webp" width="150" height="150" alt="SpecOps ${specops[2]}" title="SpecOps ${specops[2]}: ${specops[0]}+ missions${onyx>1?` (${onyx} × ${SPECOPS[0][0]})`:''}">${onyx>1?`<b class="medal-count">X ${onyx}</b>`:''}`:'');
 
@@ -178,7 +181,8 @@ for(const it of placed){
   markers.set(it.key,L.circleMarker([it.lat,it.lng],{radius:Math.min(11,4+Math.sqrt(it.missions||6)/1.6),weight:1.5,color:c,fillColor:c,fillOpacity:.45})
     .bindPopup(`<b>${it.no?it.no+' ':no(it.i)?'#'+no(it.i)+' ':''}${esc(it.title||it.name)}</b><br>${it.missions} missions${it.addr?' · '+esc(it.addr):''}<br>${CAT[it.cat][0]}<br><button type="button" data-k="${it.key}">Show in the table</button>`));
 }
-const all=L.latLngBounds(placed.map(it=>[it.lat,it.lng]));
+// No banner with a start point yet (no done list, nothing matched): show the world
+const all=placed.length?L.latLngBounds(placed.map(it=>[it.lat,it.lng])):L.latLngBounds([[-50,-160],[70,160]]);
 map.fitBounds(all,{padding:[20,20]});
 document.getElementById('map').addEventListener('click',e=>{const b=e.target.closest('button[data-k]');if(b)select(b.dataset.k,'shot')});
 const regions={};
