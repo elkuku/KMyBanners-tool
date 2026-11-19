@@ -22,7 +22,7 @@ jobs:
       name: github-pages
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       # A new repo runs this once before the app has uploaded anything (and maybe before Pages is on)
       - name: Look for screenshots
         id: input
@@ -34,22 +34,22 @@ jobs:
             echo "found=false" >> "$GITHUB_OUTPUT"
           fi
       - if: steps.input.outputs.found == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: elkuku/ingress-banners
           ref: ${{ inputs.tool-ref }}
           path: .ingress-banners
       - if: steps.input.outputs.found == 'true'
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - if: steps.input.outputs.found == 'true'
         run: pip install --quiet ./.ingress-banners
       - id: pages
         if: steps.input.outputs.found == 'true'
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
       - if: steps.input.outputs.found == 'true'
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/bannergress
           key: bannergress-${{ hashFiles('done.json', 'capture/**') }}
@@ -68,9 +68,9 @@ jobs:
             git push -q
           fi
       - if: steps.build.outputs.built == 'true'
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ runner.temp }}/site
       - id: deploy
         if: steps.build.outputs.built == 'true'
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
