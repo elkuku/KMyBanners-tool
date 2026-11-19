@@ -227,19 +227,30 @@ def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) 
     notes = json.loads((repo / 'notes.json').read_text()) if (repo / 'notes.json').exists() else {}
     synced = config.get('doneSyncedAt') or datetime.fromtimestamp((repo / 'done.json').stat().st_mtime, timezone.utc) \
         .strftime('%Y-%m-%dT%H:%M:%SZ') if (repo / 'done.json').exists() else None
-    missions = {'shot': write_tiles(im, out), 'rows': [list(r) for r in rows],
+    shot_tiles = write_tiles(im, out)
+    desc, version = write_preview(banners, agent, out)  # reads img/ by plain path, before the versions below
+
+    # Every file of the page gets its content hash in its URL: GitHub Pages lets browsers keep files for
+    # 10 minutes, so without it visitors see old data (or new and old mixed) after an update.
+    def versioned(rel: str) -> str:
+        return f"{rel}?v={hashlib.sha1((out / rel).read_bytes()).hexdigest()[:8]}"
+    for b in banners:
+        b['img'] = versioned(b['img'])
+    for t in shot_tiles['tiles']:
+        t['src'] = versioned(t['src'])
+    missions = {'shot': shot_tiles, 'rows': [list(r) for r in rows],
                 'done': {'source': 'Bannergress done list', 'syncedAt': synced, 'banners': done}, 'notes': notes}
     (out / 'data.js').write_text('window.BANNERS=' + json.dumps(banners, ensure_ascii=False, indent=1) + ';\n', encoding='utf-8')
     (out / 'missions-data.js').write_text('window.MISSIONS=' + json.dumps(missions, ensure_ascii=False) + ';\n', encoding='utf-8')
     (out / 'banners.json').write_text(json.dumps({'agent': agent, 'banners': banners}, ensure_ascii=False), encoding='utf-8')
-
-    desc, version = write_preview(banners, agent, out)
     base = url.rstrip('/') + '/' if url else ''
     html = (SITE / 'index.html').read_text(encoding='utf-8')
     esc = lambda s: s.replace('&', '&amp;').replace('"', '&quot;').replace('<', '&lt;')  # noqa: E731
     for k, v in {'agent': esc(agent), 'description': esc(desc), 'url': esc(base),
                  'preview': esc(f'{base}preview.jpg?v={version}')}.items():
         html = html.replace('{{' + k + '}}', v)
+    for rel in ('data.js', 'missions-data.js', 'world.js', 'app.js', 'style.css'):
+        html = html.replace(f'"{rel}"', f'"{versioned(rel)}"')
     (out / 'index.html').write_text(html, encoding='utf-8')
     (out / '.nojekyll').write_text('')
     result = {'rows': len(rows), 'matched': sum(1 for b in banners if b['status'] == 'match'),
