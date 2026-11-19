@@ -1,0 +1,56 @@
+# The banner page build for agents' repos (made from elkuku/ingress-banners-template).
+# Their workflow calls it:  uses: elkuku/ingress-banners/.github/workflows/build-page.yml@v1
+name: Build banner page
+on:
+  workflow_call:
+    inputs:
+      tool-ref:
+        description: Version of the ingress-banners tool (a tag or branch)
+        type: string
+        default: v1
+jobs:
+  page:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # keep the stitched screenshot, empty the inbox
+      pages: write
+      id-token: write
+    concurrency:
+      group: banner-page
+      cancel-in-progress: false
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          repository: elkuku/ingress-banners
+          ref: ${{ inputs.tool-ref }}
+          path: .ingress-banners
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install --quiet ./.ingress-banners
+      - id: pages
+        uses: actions/configure-pages@v5
+      - uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/bannergress
+          key: bannergress-${{ hashFiles('done.json', 'capture/**') }}
+          restore-keys: bannergress-
+      - name: Build the page
+        run: ingress-banners site --repo . -o "${{ runner.temp }}/site" --url "${{ steps.pages.outputs.base_url }}" --cache "${{ runner.temp }}/bannergress"
+      - name: Keep the stitched screenshot and empty the inbox
+        run: |
+          git add -A capture inbox
+          if ! git diff --cached --quiet; then
+            git -c user.name='github-actions[bot]' -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+              commit -q -m 'Stitch the new screenshots'
+            git push -q
+          fi
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/site
+      - id: deploy
+        uses: actions/deploy-pages@v4

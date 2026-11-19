@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>{{agent}}'s Banners</title>
+<!-- Written by ingress-banners site: the agent name and the link preview -->
+<meta name="description" content="{{description}}">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="{{agent}}'s Banners">
+<meta property="og:title" content="{{agent}}'s Banners">
+<meta property="og:description" content="{{description}}">
+<meta property="og:url" content="{{url}}">
+<meta property="og:image" content="{{preview}}">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="{{agent}}'s Banners: Ingress mission banner medals">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{agent}}'s Banners">
+<meta name="twitter:description" content="{{description}}">
+<meta name="twitter:image" content="{{preview}}">
+<link rel="icon" href="favicon.ico" sizes="16x16 32x32 48x48">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<script src="vendor/leaflet.js"></script>
+<script src="vendor/topojson.js"></script>
+<link rel="stylesheet" href="vendor/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<header class="top"><div class="top-in"><h1>{{agent}}'s <span>Banners</span></h1><div class="stats" id="stats"></div></div></header>
+<div class="wrap">
+  <section class="shotbox" aria-label="Mission medal screenshot">
+    <h2>Mission medals in Ingress</h2>
+    <p>The agent's mission medals, newest first. Select a banner here or in the table.</p>
+    <div class="shot" id="shot"><div class="shot-in" id="shotIn"></div></div>
+  </section>
+  <section class="tablebox" aria-label="Banners">
+    <div class="mapbox" aria-label="Map of banner start points">
+      <h2>Start points</h2>
+      <div id="map"></div>
+      <div class="regions" id="regions"></div>
+    </div>
+    <h2>Every banner</h2>
+    <div class="bar">
+      <input id="q" type="search" placeholder="Search title, place, id or note" aria-label="Search banners">
+      <span class="count" id="count"></span>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Filter by analysis"></div>
+    <div class="scroller" id="scroller">
+      <table>
+        <thead><tr id="head"></tr></thead>
+        <tbody id="body"></tbody>
+      </table>
+    </div>
+  </section>
+</div>
+
+<script src="data.js"></script>
+<script src="missions-data.js"></script>
+<script src="world.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

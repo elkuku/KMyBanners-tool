@@ -2,6 +2,7 @@
 
   ingress-banners stitch shot1.png shot2.png … -o medals.png
   ingress-banners build medals.png --done done.json -o out/   # out/banners.json, out/img/
+  ingress-banners site --repo . -o _site [--url https://…/]   # an agent's repo -> their page
 """
 from __future__ import annotations
 
@@ -79,7 +80,16 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument('--cache', type=Path, default=Path('.cache/bannergress'))
     b.add_argument('--threshold', type=float, default=0.10)
     b.add_argument('--margin', type=float, default=0.005)
+    w = sub.add_parser('site', help="build an agent's page from their repo (inbox, capture, done list)")
+    w.add_argument('--repo', type=Path, default=Path('.'))
+    w.add_argument('-o', '--out', type=Path, required=True)
+    w.add_argument('--url', default='', help='the page URL (for the link preview)')
+    w.add_argument('--cache', type=Path)
     a = p.parse_args(argv)
+    if a.cmd == 'site':
+        from .site import build_site
+        build_site(a.repo, a.out, a.url, a.cache)
+        return 0
     if a.cmd == 'stitch':
         try:
             im = stitch([Image.open(f) for f in a.shots])
