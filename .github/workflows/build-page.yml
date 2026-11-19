@@ -23,26 +23,43 @@ jobs:
       url: ${{ steps.deploy.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/checkout@v4
+      # A new repo runs this once before the app has uploaded anything (and maybe before Pages is on)
+      - name: Look for screenshots
+        id: input
+        run: |
+          if [ -f capture/medals.jpg ] || [ -n "$(find inbox -type f ! -name .gitkeep 2>/dev/null | head -1)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "No screenshots yet (the app puts them in inbox/): nothing to build."
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.input.outputs.found == 'true'
+        uses: actions/checkout@v4
         with:
           repository: elkuku/ingress-banners
           ref: ${{ inputs.tool-ref }}
           path: .ingress-banners
-      - uses: actions/setup-python@v5
+      - if: steps.input.outputs.found == 'true'
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - run: pip install --quiet ./.ingress-banners
+      - if: steps.input.outputs.found == 'true'
+        run: pip install --quiet ./.ingress-banners
       - id: pages
+        if: steps.input.outputs.found == 'true'
         uses: actions/configure-pages@v5
-      - uses: actions/cache@v4
+      - if: steps.input.outputs.found == 'true'
+        uses: actions/cache@v4
         with:
           path: ${{ runner.temp }}/bannergress
           key: bannergress-${{ hashFiles('done.json', 'capture/**') }}
           restore-keys: bannergress-
       - name: Build the page
         id: build
+        if: steps.input.outputs.found == 'true'
         run: ingress-banners site --repo . -o "${{ runner.temp }}/site" --url "${{ steps.pages.outputs.base_url }}" --cache "${{ runner.temp }}/bannergress"
       - name: Keep the stitched screenshot and empty the inbox
+        if: steps.build.outputs.built == 'true'
         run: |
           git add -A capture inbox
           if ! git diff --cached --quiet; then
