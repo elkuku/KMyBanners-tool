@@ -10,7 +10,7 @@ from pathlib import Path
 from PIL import Image
 
 API = 'https://api.bannergress.com'
-USER_AGENT = 'ingress-banners/0.1 (+https://github.com/elkuku/ingress-banners)'
+USER_AGENT = 'ingress-banners-tool/0.1 (+https://github.com/elkuku/ingress-banners-tool)'
 
 
 class Bannergress:
