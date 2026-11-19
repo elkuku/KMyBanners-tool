@@ -40,6 +40,7 @@ jobs:
           key: bannergress-${{ hashFiles('done.json', 'capture/**') }}
           restore-keys: bannergress-
       - name: Build the page
+        id: build
         run: ingress-banners site --repo . -o "${{ runner.temp }}/site" --url "${{ steps.pages.outputs.base_url }}" --cache "${{ runner.temp }}/bannergress"
       - name: Keep the stitched screenshot and empty the inbox
         run: |
@@ -49,8 +50,10 @@ jobs:
               commit -q -m 'Stitch the new screenshots'
             git push -q
           fi
-      - uses: actions/upload-pages-artifact@v3
+      - if: steps.build.outputs.built == 'true'
+        uses: actions/upload-pages-artifact@v3
         with:
           path: ${{ runner.temp }}/site
       - id: deploy
+        if: steps.build.outputs.built == 'true'
         uses: actions/deploy-pages@v4

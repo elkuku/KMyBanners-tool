@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -88,7 +89,10 @@ def main(argv: list[str] | None = None) -> int:
     a = p.parse_args(argv)
     if a.cmd == 'site':
         from .site import build_site
-        build_site(a.repo, a.out, a.url, a.cache)
+        built = build_site(a.repo, a.out, a.url, a.cache) is not None
+        if os.environ.get('GITHUB_OUTPUT'):  # tell the workflow whether there is a page to deploy
+            with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+                f.write(f'built={str(built).lower()}\n')
         return 0
     if a.cmd == 'stitch':
         try:

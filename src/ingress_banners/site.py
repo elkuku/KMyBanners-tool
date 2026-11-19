@@ -184,14 +184,16 @@ def write_preview(banners: list[dict], agent: str, out: Path) -> tuple[str, str]
     return desc, hashlib.sha1((out / 'preview.jpg').read_bytes()).hexdigest()[:8]
 
 
-def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) -> dict:
+def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) -> dict | None:
+    """The page in out; None when there are no screenshots yet (a new repo)."""
     repo, out = Path(repo), Path(out)
     config = json.loads((repo / 'config.json').read_text(encoding='utf-8')) if (repo / 'config.json').exists() else {}
     agent = config.get('agent') or 'Agent'
     take_inbox(repo)
     shot = repo / 'capture' / 'medals.jpg'
     if not shot.exists():
-        raise SystemExit('No screenshots yet: the app puts them in inbox/.')
+        print('No screenshots yet (the app puts them in inbox/): nothing to build.')
+        return None
     bg = Bannergress(cache or repo / '.cache' / 'bannergress')
     done = read_done(repo / 'done.json')
     corr = json.loads((repo / 'corrections.json').read_text()) if (repo / 'corrections.json').exists() else {}
