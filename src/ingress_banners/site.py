@@ -2,10 +2,13 @@
 
 The agent's repo:
   config.json         {"agent": "name"}
-  inbox/<batch>/*.png  screenshots from the app (newest batch is used), in scroll order
-  capture/medals.jpg   the stitched screenshot (written here from the inbox; kept for later builds)
+  inbox/<batch>/*.png  new screenshots from the app (the newest batch is used), in scroll order
+  captures/<batch>/    the screenshots of earlier builds (moved here from the inbox)
+  capture/medals.jpg   the stitched screenshot (written here from the inbox; kept for later builds): a new batch
+                       from the top of the list down to medals that were there before is joined onto it
   done.json            the Bannergress done list (Bannergress /bnrs format or AgentTools export)
-  corrections.json     rows the agent decided in the app: {"rows": [{"fp": …, "id": …|null, "name": …, "single": true?}]}
+  corrections.json     rows the agent decided in the app: {"rows": [{"fp": …, "end": …, "id": …|null, "name": …,
+                       "single": true?}]}; end is the row's place from the end of the list (0: the last row)
   notes.json           optional notes per banner id
 The page goes to the output directory (the Pages artifact).
 """
@@ -24,7 +27,7 @@ from PIL import Image, ImageDraw, ImageFont
 from . import grid, match
 from .bannergress import Bannergress, entry
 from .nearby import nearby_options
-from .stitch import stitch
+from .stitch import join, stitch
 
 Image.MAX_IMAGE_PIXELS = None
 SITE = Path(__file__).parent / 'site'
@@ -37,7 +40,7 @@ CORRECTION_DIST = 0.03  # a row the agent decided before is the same row again
 # --- inputs ------------------------------------------------------------------------------------
 
 def take_inbox(repo: Path) -> Path | None:
-    """Stitch the newest screenshot batch into capture/medals.jpg and empty the inbox."""
+    """Stitch the newest screenshot batch onto capture/medals.jpg and move the inbox to captures/."""
     inbox = repo / 'inbox'
     if not inbox.is_dir():
         return None
@@ -47,12 +50,27 @@ def take_inbox(repo: Path) -> Path | None:
         return None
     im = stitch([Image.open(f) for f in shots])
     out = repo / 'capture' / 'medals.jpg'
+    joined = out.exists()
+    if joined:
+        im = join(im, grid.normalize(Image.open(out)))
     out.parent.mkdir(exist_ok=True)
     im.save(out, quality=92, optimize=True)
-    for f in inbox.iterdir():
-        if f.name != '.gitkeep':
-            shutil.rmtree(f) if f.is_dir() else f.unlink()
-    print(f'{len(shots)} screenshots from {batches[-1].relative_to(repo)} -> {out.relative_to(repo)} ({im.height} px)')
+    # Kept: a later build can stitch them again; earlier batches never built (an upload replaced) too
+    archive = repo / 'captures'
+    loose = [f for f in inbox.iterdir() if f.is_file() and f.name != '.gitkeep']
+    if loose:
+        stamp = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H%M%SZ')
+        (archive / stamp).mkdir(parents=True, exist_ok=True)
+        for f in loose:
+            shutil.move(f, archive / stamp / f.name)
+    for d in (d for d in inbox.iterdir() if d.is_dir()):
+        archive.mkdir(exist_ok=True)
+        target = archive / d.name
+        if target.exists():
+            shutil.rmtree(target)
+        shutil.move(d, target)
+    print(f'{len(shots)} screenshots from {batches[-1].relative_to(repo)} -> {out.relative_to(repo)} '
+          f'({im.height} px{", joined onto the capture before" if joined else ""})')
     missing = grid.unloaded_rows(im)
     if missing:
         print(f'  medals that did not load in {len(missing)} rows (y {", ".join(map(str, missing[:10]))})')
@@ -107,12 +125,17 @@ def analyse(im: Image.Image, done: list[dict], corrections: list[dict], bg: Bann
     for m in ms:  # too close to another banner: let the agent decide
         if m.id and m.second - m.dist <= margin:
             m.id, m.picture_row = None, None
-    # The agent's own decisions win: a row they decided before looks the same in a new capture
+    # The agent's own decisions win: a row they decided before looks the same in a new capture. Look-alike
+    # banners (a series, "Second Sunday" …) are closer to each other than a row is to itself in another
+    # capture, so a decision with the row's place from the end of the list ("end": new medals come in on top,
+    # so it stays) applies only to the row at that place
     fixed = [(fp_decode(c['fp']), c) for c in corrections if c.get('fp')]
     for m in ms:
-        if not fixed:
-            break
-        d, c = min(((match.row_distance(screen[m.row], fp), c) for fp, c in fixed), key=lambda x: x[0])
+        end = len(rows) - 1 - m.row
+        near = [(match.row_distance(screen[m.row], fp), c) for fp, c in fixed if c.get('end') in (None, end)]
+        if not near:
+            continue
+        d, c = min(near, key=lambda x: x[0])
         if d <= CORRECTION_DIST:
             if c.get('single'):  # single missions, not a banner
                 m.id = 'single:' + (c.get('name') or 'Single missions')
@@ -225,7 +248,9 @@ def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) 
         b = {'i': i, 'rows': match.rows_text(e['rows']), 'count': sum(grid.row_medals(im, rows[r]) for r in e['rows']),
              'img': img, 'fp': fp_encode(screen[first]),
              # every row's fingerprint: the app changes a whole entry (corrections.json has one per row)
-             'fps': [fp_encode(screen[r]) for r in e['rows']]}
+             'fps': [fp_encode(screen[r]) for r in e['rows']],
+             # and its place from the end of the list, which new medals on top don't change (for corrections)
+             'ends': [len(rows) - 1 - r for r in e['rows']]}
         if e['id'] and e['id'].startswith('single:'):
             b.update({'status': 'none', 'name': e['id'][7:], 'single': True})
         elif e['id'] and not e['id'].startswith('medal:'):

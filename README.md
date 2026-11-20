@@ -23,8 +23,9 @@ jobs:
     uses: elkuku/KMyBanners-tool/.github/workflows/build-page.yml@v1
 ```
 
-It stitches the newest screenshots in `inbox/` into `capture/medals.jpg` (and empties the inbox),
-matches the medal rows with `done.json` and the agent's `corrections.json`, and deploys the page to
+It stitches the newest screenshots in `inbox/` into `capture/medals.jpg` and moves them to
+`captures/<batch>/`. An update needs screenshots only from the top of the list down to medals that were there
+before: the new capture is joined onto the one before where three rows in a row are the same. Then it matches the medal rows with `done.json` and the agent's `corrections.json`, and deploys the page to
 GitHub Pages. The page (`src/ingress_banners/site/`) comes from
 [nikp3h-ingress-stats](https://github.com/elkuku/nikp3h-ingress-stats): Leaflet 1.9.4, TopoJSON 3.0.2,
 flags from flag-icons (MIT), country outlines from Natural Earth via world-atlas.

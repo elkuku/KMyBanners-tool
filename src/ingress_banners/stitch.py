@@ -12,7 +12,7 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image
 
-from .grid import header_end, normalize, unloaded_rows
+from .grid import find_rows, header_end, normalize, row_fingerprints, unloaded_rows
 
 # The content band, found from the header's line in each shot (phones differ in their status bar and the
 # header's place); the numbers in brackets are a Pixel 6a's (1080 x 2400), used when no line is found.
@@ -117,3 +117,47 @@ def stitch(shots: list[Image.Image], bottom: int = BOTTOM, max_diff: float = 6.0
     for y, band in merged:  # later shots over earlier ones
         out.paste(band, (0, y))
     return out
+
+
+JOIN_DIST = 0.03  # the same medal row in two captures (as site.CORRECTION_DIST)
+JOIN_RUN = 3      # rows in a row that must be the same: one row alone can look like another (Second Sunday …)
+
+
+def _row_distance(a: np.ndarray, b: np.ndarray) -> float:
+    return float(np.abs(a - b).mean())
+
+
+def join(new: Image.Image, old: Image.Image) -> Image.Image:
+    """A new capture (stitched, from the top of the list) on top of the one before: an update needs screenshots
+    only down to medals that were there before.
+
+    From the bottom of the new capture up, the first row that, with the rows above it, is the same as rows of the
+    old capture is where they meet: the new one down to there, then the old one below. Rows at the bottom of the
+    new capture that aren't in the old one (under the fade of its last screenshot) are left out. When the new
+    capture reaches the end of the list, it is used alone. Raises StitchError when they don't meet.
+    """
+    rows_new, rows_old = find_rows(new), find_rows(old)
+    if not rows_old:
+        return new
+    fps_new = [row_fingerprints(new, r) for r in rows_new]
+    fps_old = [row_fingerprints(old, r) for r in rows_old]
+    for i in range(len(rows_new) - 1, JOIN_RUN - 2, -1):
+        # New medals come in on top: the same row is at j <= i in the old capture; the closest run wins
+        found = [(sum(_row_distance(fps_new[i - k], fps_old[j - k]) for k in range(JOIN_RUN)), j)
+                 for j in range(min(i, len(rows_old) - 1), JOIN_RUN - 2, -1)
+                 if all(_row_distance(fps_new[i - k], fps_old[j - k]) <= JOIN_DIST for k in range(JOIN_RUN))]
+        if not found:
+            continue
+        j = min(found)[1]
+        if j == len(rows_old) - 1:
+            return new  # down to the end of the list
+        cut_new = (rows_new[i][1] + (rows_new[i + 1][0] if i + 1 < len(rows_new) else rows_new[i][1] + 8)) // 2
+        cut_old = (rows_old[j][1] + rows_old[j + 1][0]) // 2
+        top = new.crop((0, 0, new.width, cut_new))
+        rest = old.crop((0, cut_old, old.width, old.height))
+        out = Image.new('RGB', (new.width, top.height + rest.height))
+        out.paste(top, (0, 0))
+        out.paste(rest, (0, top.height))
+        return out
+    raise StitchError('the new screenshots do not reach the medals already on your page; '
+                      'take them down to medals that were there before, and a few rows more')
