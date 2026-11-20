@@ -1,4 +1,4 @@
-"""Compare `ingress-banners-tool build` output with nikp3h's hand-made data.js.
+"""Compare `kmybanners-tool build` output with nikp3h's hand-made data.js.
 
   .venv/bin/python tests/compare_nikp3h.py out/banners.json ~/repos/nikp3h-ingress-stats/mission-banners/data.js
 """

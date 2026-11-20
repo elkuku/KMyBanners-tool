@@ -1,11 +1,11 @@
-# The banner page build for agents' repos (made from elkuku/ingress-banners-template).
-# Their workflow calls it:  uses: elkuku/ingress-banners-tool/.github/workflows/build-page.yml@v1
+# The banner page build for agents' repos (made from elkuku/KMyBanners-template).
+# Their workflow calls it:  uses: elkuku/KMyBanners-tool/.github/workflows/build-page.yml@v1
 name: Build banner page
 on:
   workflow_call:
     inputs:
       tool-ref:
-        description: Version of ingress-banners-tool (a tag or branch)
+        description: Version of kmybanners-tool (a tag or branch)
         type: string
         default: v1
 jobs:
@@ -36,15 +36,15 @@ jobs:
       - if: steps.input.outputs.found == 'true'
         uses: actions/checkout@v7
         with:
-          repository: elkuku/ingress-banners-tool
+          repository: elkuku/KMyBanners-tool
           ref: ${{ inputs.tool-ref }}
-          path: .ingress-banners-tool
+          path: .KMyBanners-tool
       - if: steps.input.outputs.found == 'true'
         uses: actions/setup-python@v7
         with:
           python-version: '3.12'
       - if: steps.input.outputs.found == 'true'
-        run: pip install --quiet ./.ingress-banners-tool
+        run: pip install --quiet ./.KMyBanners-tool
       - id: pages
         if: steps.input.outputs.found == 'true'
         uses: actions/configure-pages@v6
@@ -57,7 +57,7 @@ jobs:
       - name: Build the page
         id: build
         if: steps.input.outputs.found == 'true'
-        run: ingress-banners-tool site --repo . -o "${{ runner.temp }}/site" --url "${{ steps.pages.outputs.base_url }}" --cache "${{ runner.temp }}/bannergress"
+        run: kmybanners-tool site --repo . -o "${{ runner.temp }}/site" --url "${{ steps.pages.outputs.base_url }}" --cache "${{ runner.temp }}/bannergress"
       - name: Keep the stitched screenshot and empty the inbox
         if: steps.build.outputs.built == 'true'
         run: |

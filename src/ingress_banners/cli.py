@@ -1,8 +1,8 @@
-"""ingress-banners-tool: from mission medal screenshots to a banner list.
+"""kmybanners-tool: from mission medal screenshots to a banner list.
 
-  ingress-banners-tool stitch shot1.png shot2.png … -o medals.png
-  ingress-banners-tool build medals.png --done done.json -o out/   # out/banners.json, out/img/
-  ingress-banners-tool site --repo . -o _site [--url https://…/]   # an agent's repo -> their page
+  kmybanners-tool stitch shot1.png shot2.png … -o medals.png
+  kmybanners-tool build medals.png --done done.json -o out/   # out/banners.json, out/img/
+  kmybanners-tool site --repo . -o _site [--url https://…/]   # an agent's repo -> their page
 """
 from __future__ import annotations
 
@@ -69,7 +69,7 @@ def build(shot: Path, done: Path, out: Path, cache: Path, threshold: float, marg
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog='ingress-banners-tool', description=__doc__.split('\n')[0])
+    p = argparse.ArgumentParser(prog='kmybanners-tool', description=__doc__.split('\n')[0])
     sub = p.add_subparsers(dest='cmd', required=True)
     s = sub.add_parser('stitch', help='stitch screenshots (in scroll order) into one image')
     s.add_argument('shots', nargs='+', type=Path)

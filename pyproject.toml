@@ -1,12 +1,12 @@
 [project]
-name = "ingress-banners-tool"
+name = "kmybanners-tool"
 version = "0.1.0"
 description = "Build a mission banner page from Ingress mission medal screenshots and Bannergress"
 requires-python = ">=3.11"
 dependencies = ["pillow>=10", "numpy>=1.26"]
 
 [project.scripts]
-ingress-banners-tool = "ingress_banners.cli:main"
+kmybanners-tool = "ingress_banners.cli:main"
 
 [tool.pytest.ini_options]
 pythonpath = ["src"]
