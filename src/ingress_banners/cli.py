@@ -12,7 +12,6 @@ import os
 import sys
 from pathlib import Path
 
-import numpy as np
 from PIL import Image
 
 from . import grid, match
@@ -20,11 +19,6 @@ from .bannergress import Bannergress, entry
 from .stitch import StitchError, stitch
 
 Image.MAX_IMAGE_PIXELS = None
-
-
-def medal_count(fp_row: np.ndarray) -> int:
-    """Medals in a row (empty cells are black)."""
-    return int(sum(1 for cell in fp_row if cell.mean() > 0.04))
 
 
 def read_done(path: Path) -> list[dict]:
@@ -55,7 +49,7 @@ def build(shot: Path, done: Path, out: Path, cache: Path, threshold: float, marg
             run += 1
         img = f'img/m{i:03d}.jpg'
         grid.medal_picture(im, rows, first, run).save(out / img, quality=90)
-        b = {'i': i, 'rows': match.rows_text(e['rows']), 'count': sum(medal_count(screen[r]) for r in e['rows']),
+        b = {'i': i, 'rows': match.rows_text(e['rows']), 'count': sum(grid.row_medals(im, rows[r]) for r in e['rows']),
              'img': img}
         if e['id']:
             b.update({'status': 'match', 'score': round(max(e['dist']), 3)})

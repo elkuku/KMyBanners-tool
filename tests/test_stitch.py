@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from PIL import Image, ImageDraw
 
+from ingress_banners import grid
 from ingress_banners.grid import header_end
 from ingress_banners.stitch import BELOW_LINE, BOTTOM, NAV, StitchError, band_top, stitch
 
@@ -84,3 +85,8 @@ def test_end_of_list_spinner_is_removed():
     a = np.asarray(out.crop((0, 0, 1080, n)), dtype=np.int16)
     b = np.asarray(long.crop((0, first - 140, 1080, first - 140 + n)), dtype=np.int16)
     assert np.abs(a - b).mean() < 0.5
+
+
+def test_an_empty_cell_has_no_medal():
+    """The end of a last row that isn't full: black, no ring."""
+    assert not grid.has_medal(Image.new('RGB', (152, 152)))

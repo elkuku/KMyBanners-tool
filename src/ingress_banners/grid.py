@@ -109,12 +109,9 @@ def medal_picture(im: Image.Image, rows: list[tuple[int, int]], first: int, coun
     return crop.resize((width, round(crop.height * width / crop.width)), Image.LANCZOS)
 
 
-def unloaded(cell: Image.Image) -> bool:
-    """A medal whose picture didn't load: a white/grey ring (loaded medals have an orange one) around black.
-
-    The ring is the brightest pixel on each ray from the centre between 38 and 50 % of the cell (it is thin).
-    """
-    a = np.asarray(cell.convert('RGB'), dtype=np.float32)
+def _ring(a: np.ndarray) -> np.ndarray:
+    """The colour of a cell's ring: the brightest pixel on each ray from the centre between 38 and 50 % of the
+    cell (the ring is thin), the median over all rays."""
     h, w, _ = a.shape
     peaks = []
     for k in range(72):
@@ -122,9 +119,28 @@ def unloaded(cell: Image.Image) -> bool:
         pts = [a[min(h - 1, int(h / 2 + r * h * math.sin(t))), min(w - 1, int(w / 2 + r * w * math.cos(t)))]
                for r in np.linspace(0.38, 0.495, 12)]
         peaks.append(max(pts, key=lambda p: p.sum()))
-    ring = np.median(np.array(peaks), axis=0)
+    return np.median(np.array(peaks), axis=0)
+
+
+def has_medal(cell: Image.Image) -> bool:
+    """A medal in the cell, by its ring: also a dark or black medal (its picture is no brighter than an empty
+    cell), and a medal under the fade at the end of the list (its ring is dim). An empty cell, at the end of the
+    last row, is black: no ring."""
+    return max(_ring(np.asarray(cell.convert('RGB'), dtype=np.float32))) >= 20
+
+
+def row_medals(im: Image.Image, row: tuple[int, int]) -> int:
+    """How many medals the row has (6, fewer only in the last row)."""
+    return sum(1 for c in row_cells(im, row) if has_medal(c))
+
+
+def unloaded(cell: Image.Image) -> bool:
+    """A medal whose picture didn't load: a white/grey ring (loaded medals have an orange one) around black."""
+    a = np.asarray(cell.convert('RGB'), dtype=np.float32)
+    ring = _ring(a)
     if max(ring) < 60:
         return False  # no medal there (the end of a row)
+    h, w, _ = a.shape
     inner = a[int(h * .25):int(h * .75), int(w * .25):int(w * .75)].mean()
     return ring[0] - ring[2] <= 60 and inner < 25
 

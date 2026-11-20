@@ -123,10 +123,6 @@ def analyse(im: Image.Image, done: list[dict], corrections: list[dict], bg: Bann
     return rows, screen, entries
 
 
-def medal_count(fp_row: np.ndarray) -> int:
-    return int(sum(1 for cell in fp_row if cell.mean() > 0.04))
-
-
 # --- output ------------------------------------------------------------------------------------
 
 def write_tiles(im: Image.Image, out: Path) -> dict:
@@ -226,7 +222,7 @@ def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) 
             run += 1
         img = f'img/m{i:03d}.jpg'
         grid.medal_picture(im, rows, first, run).save(out / img, quality=90)
-        b = {'i': i, 'rows': match.rows_text(e['rows']), 'count': sum(medal_count(screen[r]) for r in e['rows']),
+        b = {'i': i, 'rows': match.rows_text(e['rows']), 'count': sum(grid.row_medals(im, rows[r]) for r in e['rows']),
              'img': img, 'fp': fp_encode(screen[first]),
              # every row's fingerprint: the app changes a whole entry (corrections.json has one per row)
              'fps': [fp_encode(screen[r]) for r in e['rows']]}

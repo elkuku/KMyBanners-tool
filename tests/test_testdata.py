@@ -29,6 +29,8 @@ def test_the_whole_list():
     assert len(rows) == 418
     missing = grid.unloaded_rows(im)
     assert len(missing) <= 1 and all(y >= rows[-1][0] for y in missing)
+    # Every row has 6 medals: also the dark ones (Aquis Mattiacis, rows 16-17) and the last row under the fade
+    assert [grid.row_medals(im, r) for r in rows] == [6] * 418
 
 
 @needs_data
