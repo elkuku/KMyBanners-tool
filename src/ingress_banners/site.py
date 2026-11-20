@@ -220,7 +220,11 @@ def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) 
         elif e['id']:
             b.update({'status': 'none', 'name': e['id'][6:]})
         else:
-            b.update({'status': 'review', 'score': round(min(e['dist']), 3), 'name': None})
+            # The closest banners of the done list, for the app's review screen
+            by_id = {d['id']: d for d in done}
+            options = [{'id': i, 'dist': dist, 'title': by_id[i]['title'], 'missions': by_id[i]['missions'],
+                        'picture': by_id[i]['picture']} for i, dist in e.get('options', []) if i in by_id]
+            b.update({'status': 'review', 'score': round(min(e['dist']), 3), 'name': None, 'options': options})
         b.setdefault('missions', b['count'])
         banners.append(b)
 

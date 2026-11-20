@@ -20,6 +20,7 @@ class RowMatch:
     picture_row: int | None
     dist: float
     second: float  # distance of the best other banner (how sure the match is)
+    options: list[tuple[str, float]] = field(default_factory=list)  # the closest banners, for the agent to pick from
 
 
 def row_distance(a: np.ndarray, b: np.ndarray) -> float:
@@ -27,8 +28,10 @@ def row_distance(a: np.ndarray, b: np.ndarray) -> float:
     return float(np.abs(a - b).mean())
 
 
-def match_rows(screen: list[np.ndarray], candidates: list[Candidate], threshold: float = 0.12) -> list[RowMatch]:
-    """The best banner row for every screen row (id None when nothing is close enough)."""
+def match_rows(screen: list[np.ndarray], candidates: list[Candidate], threshold: float = 0.12,
+               options: int = 5) -> list[RowMatch]:
+    """The best banner row for every screen row (id None when nothing is close enough), with the closest
+    [options] banners (each banner once, by its closest row)."""
     flat, owner = [], []
     for ci, c in enumerate(candidates):
         for r, fp in enumerate(c.rows):
@@ -44,10 +47,18 @@ def match_rows(screen: list[np.ndarray], candidates: list[Candidate], threshold:
         best = int(order[0])
         ci, r = owner[best]
         second = next((float(d[j]) for j in order[1:] if owner[j][0] != ci), 1.0)
+        near, seen = [], set()
+        for j in order:
+            cj = owner[j][0]
+            if cj not in seen:
+                seen.add(cj)
+                near.append((candidates[cj].id, round(float(d[j]), 3)))
+                if len(near) == options:
+                    break
         if d[best] <= threshold:
-            out.append(RowMatch(k, candidates[ci].id, r, float(d[best]), second))
+            out.append(RowMatch(k, candidates[ci].id, r, float(d[best]), second, near))
         else:
-            out.append(RowMatch(k, None, None, float(d[best]), second))
+            out.append(RowMatch(k, None, None, float(d[best]), second, near))
     return out
 
 
@@ -59,7 +70,7 @@ def group(matches: list[RowMatch]) -> list[dict]:
     by_id: dict[str, dict] = {}
     for m in matches:
         if m.id is None:
-            entries.append({'id': None, 'rows': [m.row], 'dist': [m.dist]})
+            entries.append({'id': None, 'rows': [m.row], 'dist': [m.dist], 'options': m.options})
             continue
         e = by_id.get(m.id)
         if e is None:
