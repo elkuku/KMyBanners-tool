@@ -108,4 +108,4 @@ tbody tr.more td{position:static;background:var(--bg)}
 .regions{display:flex;flex-wrap:wrap;gap:6px}
 .regions .chip{font-size:12px;padding:4px 10px}
 .regions .flag{width:16px;height:12px;border-radius:2px;margin-right:6px;vertical-align:-1px;object-fit:cover}
-.c-disabled{--st:var(--warn)} .c-likely{--st:var(--warn)} .c-missing{--st:var(--none)} .c-nobg{--st:var(--none)} .c-single{--st:var(--muted)}
+.c-disabled{--st:var(--warn)} .c-likely{--st:var(--warn)} .c-missing{--st:var(--none)} .c-nobg{--st:var(--warn)} .c-review{--st:var(--none)} .c-single{--st:var(--muted)}

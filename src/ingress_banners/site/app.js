@@ -152,7 +152,7 @@ function select(key,from){
 }
 // Map of the start points, colored like the analysis
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-const DOT={done:'--enl',doneonly:'--res',disabled:'--warn',likely:'--warn',missing:'--none',nobg:'--none',review:'--warn',single:'--muted'};
+const DOT={done:'--enl',doneonly:'--res',disabled:'--warn',likely:'--warn',missing:'--none',nobg:'--warn',review:'--none',single:'--muted'};
 const map=L.map('map',{preferCanvas:true,worldCopyJump:true,maxZoom:16,minZoom:2,zoomSnap:.5});
 map.attributionControl.setPrefix(false);
 map.attributionControl.addAttribution('Banners: Bannergress');
