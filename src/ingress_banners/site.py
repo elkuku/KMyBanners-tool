@@ -5,7 +5,7 @@ The agent's repo:
   inbox/<batch>/*.png  screenshots from the app (newest batch is used), in scroll order
   capture/medals.jpg   the stitched screenshot (written here from the inbox; kept for later builds)
   done.json            the Bannergress done list (Bannergress /bnrs format or AgentTools export)
-  corrections.json     rows the agent decided in the app: {"rows": [{"fp": …, "id": …|null, "name": …}]}
+  corrections.json     rows the agent decided in the app: {"rows": [{"fp": …, "id": …|null, "name": …, "single": true?}]}
   notes.json           optional notes per banner id
 The page goes to the output directory (the Pages artifact).
 """
@@ -23,6 +23,7 @@ from PIL import Image, ImageDraw, ImageFont
 
 from . import grid, match
 from .bannergress import Bannergress, entry
+from .nearby import nearby_options
 from .stitch import stitch
 
 Image.MAX_IMAGE_PIXELS = None
@@ -89,8 +90,12 @@ def fp_decode(s: str) -> np.ndarray:
 # --- analysis ----------------------------------------------------------------------------------
 
 def analyse(im: Image.Image, done: list[dict], corrections: list[dict], bg: Bannergress,
-            threshold: float = 0.10, margin: float = 0.005) -> tuple[list, list[np.ndarray], list[dict]]:
-    """Medal rows -> banner entries (screenshot order, newest first)."""
+            threshold: float = 0.06, margin: float = 0.005) -> tuple[list, list[np.ndarray], list[dict]]:
+    """Medal rows -> banner entries (screenshot order, newest first).
+
+    threshold 0.06: right matches are below 0.05 (p95); when a banner is missing from the done list, a similar
+    one is closer than 0.10 for 13 % of rows but closer than 0.06 for 3 % (nikp3h, leave-one-out).
+    """
     rows = grid.find_rows(im)
     screen = [grid.row_fingerprints(im, r) for r in rows]
     cands = [match.Candidate(d['id'], grid.picture_rows(bg.picture(d['picture']))) for d in done if d.get('picture')]
@@ -105,7 +110,10 @@ def analyse(im: Image.Image, done: list[dict], corrections: list[dict], bg: Bann
             break
         d, c = min(((match.row_distance(screen[m.row], fp), c) for fp, c in fixed), key=lambda x: x[0])
         if d <= CORRECTION_DIST:
-            m.id = c.get('id') or ('medal:' + (c.get('name') or 'Unknown'))
+            if c.get('single'):  # single missions, not a banner
+                m.id = 'single:' + (c.get('name') or 'Single missions')
+            else:
+                m.id = c.get('id') or ('medal:' + (c.get('name') or 'Unknown'))
             m.dist = d
     entries = match.group(ms)
     return rows, screen, entries
@@ -199,6 +207,7 @@ def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) 
     corr = json.loads((repo / 'corrections.json').read_text()) if (repo / 'corrections.json').exists() else {}
     im = grid.normalize(Image.open(shot))
     rows, screen, entries = analyse(im, done, corr.get('rows', []), bg)
+    nearby = nearby_options(entries, screen, bg, {d['id'] for d in done})
 
     if out.exists():
         shutil.rmtree(out)
@@ -213,8 +222,12 @@ def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) 
         img = f'img/m{i:03d}.jpg'
         grid.medal_picture(im, rows, first, run).save(out / img, quality=90)
         b = {'i': i, 'rows': match.rows_text(e['rows']), 'count': sum(medal_count(screen[r]) for r in e['rows']),
-             'img': img, 'fp': fp_encode(screen[first])}
-        if e['id'] and not e['id'].startswith('medal:'):
+             'img': img, 'fp': fp_encode(screen[first]),
+             # every row's fingerprint: the app changes a whole entry (corrections.json has one per row)
+             'fps': [fp_encode(screen[r]) for r in e['rows']]}
+        if e['id'] and e['id'].startswith('single:'):
+            b.update({'status': 'none', 'name': e['id'][7:], 'single': True})
+        elif e['id'] and not e['id'].startswith('medal:'):
             b.update({'status': 'match', 'score': round(max(e['dist']), 3)})
             b.update(entry(bg.banner(e['id'])))
         elif e['id']:
@@ -224,6 +237,8 @@ def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) 
             by_id = {d['id']: d for d in done}
             options = [{'id': i, 'dist': dist, 'title': by_id[i]['title'], 'missions': by_id[i]['missions'],
                         'picture': by_id[i]['picture']} for i, dist in e.get('options', []) if i in by_id]
+            # and banners near the neighbouring banners that aren't on the done list
+            options = sorted(options + nearby.get(i, []), key=lambda o: o['dist'])[:6]
             b.update({'status': 'review', 'score': round(min(e['dist']), 3), 'name': None, 'options': options})
         b.setdefault('missions', b['count'])
         banners.append(b)

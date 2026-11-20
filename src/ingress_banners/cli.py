@@ -79,7 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     b.add_argument('--done', type=Path, required=True, help='done list JSON (bannerId/id, picture)')
     b.add_argument('-o', '--out', type=Path, required=True)
     b.add_argument('--cache', type=Path, default=Path('.cache/bannergress'))
-    b.add_argument('--threshold', type=float, default=0.10)
+    b.add_argument('--threshold', type=float, default=0.06)
     b.add_argument('--margin', type=float, default=0.005)
     w = sub.add_parser('site', help="build an agent's page from their repo (inbox, capture, done list)")
     w.add_argument('--repo', type=Path, default=Path('.'))
