@@ -20,7 +20,7 @@ jobs:
       cancel-in-progress: false
     environment:
       name: github-pages
-      url: ${{ steps.deploy.outputs.page_url }}
+      url: ${{ steps.deploy.outputs.page_url || steps.deploy2.outputs.page_url }}
     steps:
       - uses: actions/checkout@v7
       # A new repo runs this once before the app has uploaded anything (and maybe before Pages is on)
@@ -73,6 +73,14 @@ jobs:
         uses: actions/upload-pages-artifact@v5
         with:
           path: ${{ runner.temp }}/site
+      # deploy-pages sometimes can't find the artifact just uploaded ("Fetching artifact metadata failed"):
+      # wait and try once more
       - id: deploy
         if: steps.build.outputs.built == 'true'
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+      - if: steps.deploy.outcome == 'failure'
+        run: sleep 30
+      - id: deploy2
+        if: steps.deploy.outcome == 'failure'
         uses: actions/deploy-pages@v5
