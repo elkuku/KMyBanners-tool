@@ -53,6 +53,9 @@ def take_inbox(repo: Path) -> Path | None:
         if f.name != '.gitkeep':
             shutil.rmtree(f) if f.is_dir() else f.unlink()
     print(f'{len(shots)} screenshots from {batches[-1].relative_to(repo)} -> {out.relative_to(repo)} ({im.height} px)')
+    missing = grid.unloaded_rows(im)
+    if missing:
+        print(f'  medals that did not load in {len(missing)} rows (y {", ".join(map(str, missing[:10]))})')
     return out
 
 

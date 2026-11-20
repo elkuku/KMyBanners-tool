@@ -102,6 +102,9 @@ def main(argv: list[str] | None = None) -> int:
             return 1
         im.save(a.out)
         print(f'{a.out}: {im.width} x {im.height}, {len(grid.find_rows(im))} medal rows')
+        missing = grid.unloaded_rows(im)
+        if missing:
+            print(f'  medals that did not load in {len(missing)} rows (y {", ".join(map(str, missing[:10]))})')
     else:
         r = build(a.shot, a.done, a.out, a.cache, a.threshold, a.margin)
         bs = r['banners']

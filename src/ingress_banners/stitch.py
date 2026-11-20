@@ -12,7 +12,7 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image
 
-from .grid import header_end, normalize
+from .grid import header_end, normalize, unloaded_rows
 
 # The content band, found from the header's line in each shot (phones differ in their status bar and the
 # header's place); the numbers in brackets are a Pixel 6a's (1080 x 2400), used when no line is found.
@@ -21,6 +21,7 @@ BELOW_LINE = 18   # the others start this far below it, after a slight fade unde
 TOP = 140
 HEADER = 410
 BOTTOM = 370      # above the fade-out, the close button and the navigation bar (from the bottom)
+NAV = 70          # the last shot is used down to the navigation bar
 SAMPLE = 4     # compare every 4th pixel
 
 
@@ -63,32 +64,56 @@ def band_top(im: Image.Image, first: bool) -> int:
     return max(0, line - ABOVE_LINE) if first else line + BELOW_LINE
 
 
+def _merge(copies: list[Image.Image]) -> Image.Image:
+    """Copies of the same band (shots without scrolling, the last one may reach further down) as one band
+    without Ingress's loading spinner, which moves over the medals while pictures load: the per-pixel
+    median of 3 or more copies; of 2 the later one (it had more time to load the pictures); below the
+    common height the tallest copy."""
+    if len(copies) == 1:
+        return copies[0]
+    w, h = copies[0].width, min(c.height for c in copies)
+    a = np.stack([np.asarray(c.crop((0, 0, w, h)), dtype=np.uint8) for c in copies])
+    common = Image.fromarray((np.median(a, axis=0) if len(copies) > 2 else a[-1]).astype(np.uint8))
+    tallest = max(copies, key=lambda c: c.height)
+    out = tallest.copy()
+    out.paste(common, (0, 0))
+    return out
+
+
 def stitch(shots: list[Image.Image], bottom: int = BOTTOM, max_diff: float = 6.0) -> Image.Image:
     """One long image from screenshots in scroll order (top of the list first).
 
-    The first shot keeps everything below the status bar (the view's header); later shots add
-    what was scrolled in. Raises StitchError when two shots don't overlap.
+    The first shot keeps everything below the status bar (the view's header). Where two shots overlap, the
+    later one is used: there the rows are higher up on the screen, and Ingress loads a medal's picture only
+    once it is well on the screen (the lowest row of a shot often shows empty circles or "RETRY").
+    The last shot is used down to the navigation bar: the list can't scroll its last rows above the fade.
+    Shots taken again without scrolling (at the end of the list) are merged without the loading spinner.
+    Raises StitchError when two shots don't overlap.
     """
     if not shots:
         raise StitchError('no screenshots')
     ims = [normalize(s) for s in shots]
-    bands = [im.crop((0, band_top(im, k == 0), im.width, im.height - bottom)) for k, im in enumerate(ims)]
-    parts = [bands[0]]
-    total = bands[0].height
+    last = len(ims) - 1
+    bands = [im.crop((0, band_top(im, k == 0), im.width, im.height - (NAV if k == last else bottom)))
+             for k, im in enumerate(ims)]
+    groups: list[tuple[int, list[Image.Image]]] = [(0, [bands[0]])]  # (y in the output, copies of a band)
     for k in range(1, len(bands)):
-        a, b = _gray(bands[k - 1]), _gray(bands[k])
-        off, diff = offset(a, b)
+        prev_y, copies = groups[-1]
+        prev = copies[0]
+        off, diff = offset(_gray(prev), _gray(bands[k]))
         if diff > max_diff:
+            empty = [n for n in (k - 1, k) if unloaded_rows(bands[n])]
+            if empty:
+                raise StitchError(f'screenshot {empty[0] + 1}: some medals had not loaded yet (empty circles); '
+                                  'wait until the pictures appear before taking the next screenshot')
             raise StitchError(f'screenshots {k} and {k + 1} do not overlap (best difference {diff:.1f}); '
                               'take them with less scrolling in between')
-        new = bands[k].height - (bands[k - 1].height - off)
-        if new <= 0:
-            continue  # not scrolled
-        parts.append(bands[k].crop((0, bands[k].height - new, bands[k].width, bands[k].height)))
-        total += new
-    out = Image.new('RGB', (parts[0].width, total))
-    y = 0
-    for p in parts:
-        out.paste(p, (0, y))
-        y += p.height
+        if off == 0:
+            copies.append(bands[k])  # not scrolled: the same band again
+        else:
+            groups.append((prev_y + off, [bands[k]]))
+    merged = [(y, _merge(c)) for y, c in groups]
+    out = Image.new('RGB', (bands[0].width, max(y + b.height for y, b in merged)))
+    for y, band in merged:  # later shots over earlier ones
+        out.paste(band, (0, y))
     return out

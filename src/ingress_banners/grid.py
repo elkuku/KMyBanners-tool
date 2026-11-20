@@ -5,6 +5,8 @@ newest first, under a header with the title and the agent name.
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from PIL import Image
 
@@ -105,3 +107,30 @@ def medal_picture(im: Image.Image, rows: list[tuple[int, int]], first: int, coun
     end = rows[first + count][0] - 2 if first + count < len(rows) else rows[first + count - 1][1] + 7
     crop = im.crop((86, top, 994, end))
     return crop.resize((width, round(crop.height * width / crop.width)), Image.LANCZOS)
+
+
+def unloaded(cell: Image.Image) -> bool:
+    """A medal whose picture didn't load: a white/grey ring (loaded medals have an orange one) around black.
+
+    The ring is the brightest pixel on each ray from the centre between 38 and 50 % of the cell (it is thin).
+    """
+    a = np.asarray(cell.convert('RGB'), dtype=np.float32)
+    h, w, _ = a.shape
+    peaks = []
+    for k in range(72):
+        t = 2 * math.pi * k / 72
+        pts = [a[min(h - 1, int(h / 2 + r * h * math.sin(t))), min(w - 1, int(w / 2 + r * w * math.cos(t)))]
+               for r in np.linspace(0.38, 0.495, 12)]
+        peaks.append(max(pts, key=lambda p: p.sum()))
+    ring = np.median(np.array(peaks), axis=0)
+    if max(ring) < 60:
+        return False  # no medal there (the end of a row)
+    inner = a[int(h * .25):int(h * .75), int(w * .25):int(w * .75)].mean()
+    return ring[0] - ring[2] <= 60 and inner < 25
+
+
+def unloaded_rows(im: Image.Image, top: int | None = None, bottom: int | None = None) -> list[int]:
+    """The y of medal rows below [top] (default: the header line) and above [bottom] (whole rows only) with
+    medals that didn't load."""
+    bottom = im.height if bottom is None else bottom
+    return [a for a, b in find_rows(im, header=top) if b <= bottom and any(unloaded(c) for c in row_cells(im, (a, b)))]

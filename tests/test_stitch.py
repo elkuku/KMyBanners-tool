@@ -6,7 +6,7 @@ import pytest
 from PIL import Image, ImageDraw
 
 from ingress_banners.grid import header_end
-from ingress_banners.stitch import BOTTOM, BELOW_LINE, StitchError, band_top, stitch
+from ingress_banners.stitch import BELOW_LINE, BOTTOM, NAV, StitchError, band_top, stitch
 
 Image.MAX_IMAGE_PIXELS = None
 LONG = Path.home() / 'repos/nikp3h-ingress-stats/ingress-missions.png'
@@ -38,9 +38,11 @@ def check(long: Image.Image, shots: list[Image.Image], steps: list[int], bar: in
     out = stitch(shots)
     first = band_top(shots[0].resize((1080, round(shots[0].height * 1080 / shots[0].width))), True)
     start = first - bar                           # where the output starts in the long screenshot
-    assert out.height == 2400 - BOTTOM - first + sum(steps)
-    a = np.asarray(out, dtype=np.int16)
-    b = np.asarray(long.crop((0, start, 1080, start + out.height)), dtype=np.int16)
+    # the last shot is used down to the navigation bar
+    assert out.height == 2400 - NAV - first + sum(steps)
+    n = out.height - (BOTTOM - NAV)                # above the last shot's close button
+    a = np.asarray(out.crop((0, 0, 1080, n)), dtype=np.int16)
+    b = np.asarray(long.crop((0, start, 1080, start + n)), dtype=np.int16)
     assert np.abs(a - b).mean() < tolerance
 
 
@@ -66,3 +68,19 @@ def test_no_overlap_fails():
     long = Image.open(LONG).convert('RGB').crop((0, 0, 1080, 12000))
     with pytest.raises(StitchError):
         stitch(fake_screens(long, [1900]))
+
+
+@needs_long
+def test_end_of_list_spinner_is_removed():
+    """At the end of the list Ingress keeps a loading spinner moving over the medals: shots taken again
+    without scrolling are merged without it."""
+    long = Image.open(LONG).convert('RGB').crop((0, 0, 1080, 6000))
+    shots = fake_screens(long, [1000, 0, 0])      # the last shot three times (the median removes the spinner)
+    for n, s in enumerate(shots[1:]):            # a white "spinner" at a different place each time
+        ImageDraw.Draw(s).line((200 + 150 * n, 900, 300 + 150 * n, 1000), fill=(255, 255, 255), width=8)
+    out = stitch(shots)
+    first = band_top(shots[0], True)
+    n = out.height - (BOTTOM - NAV)
+    a = np.asarray(out.crop((0, 0, 1080, n)), dtype=np.int16)
+    b = np.asarray(long.crop((0, first - 140, 1080, first - 140 + n)), dtype=np.int16)
+    assert np.abs(a - b).mean() < 0.5
