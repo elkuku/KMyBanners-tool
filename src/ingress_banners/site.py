@@ -101,6 +101,7 @@ def analyse(im: Image.Image, done: list[dict], corrections: list[dict], bg: Bann
     """
     rows = grid.find_rows(im)
     screen = [grid.row_fingerprints(im, r) for r in rows]
+    bg.prefetch(bg.picture_url(d['picture']) for d in done if d.get('picture'))
     cands = [match.Candidate(d['id'], grid.picture_rows(bg.picture(d['picture']))) for d in done if d.get('picture')]
     ms = match.match_rows(screen, cands, threshold=threshold)
     for m in ms:  # too close to another banner: let the agent decide
@@ -210,6 +211,7 @@ def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) 
     corr = json.loads((repo / 'corrections.json').read_text()) if (repo / 'corrections.json').exists() else {}
     im = grid.normalize(Image.open(shot))
     rows, screen, entries = analyse(im, done, corr.get('rows', []), bg)
+    bg.prefetch(bg.banner_url(e['id']) for e in entries if e['id'] and not e['id'].startswith(('medal:', 'single:')))
     nearby = nearby_options(entries, screen, bg, {d['id'] for d in done})
 
     if out.exists():

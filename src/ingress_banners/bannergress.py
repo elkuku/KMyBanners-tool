@@ -3,8 +3,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import threading
 import urllib.parse
 import urllib.request
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from PIL import Image
@@ -25,22 +27,50 @@ class Bannergress:
         req = urllib.request.Request(url, headers={'User-Agent': USER_AGENT})
         with urllib.request.urlopen(req, timeout=30) as r:
             data = r.read()
-        key.write_bytes(data)
+        tmp = key.with_suffix(f'.{threading.get_ident()}.tmp')  # whole files only (parallel prefetch)
+        tmp.write_bytes(data)
+        tmp.replace(key)
         return data
 
+    def prefetch(self, urls, workers: int = 16) -> None:
+        """Fetches [urls] into the cache in parallel (one request after another took over 10 minutes for a
+        whole list); failures are left for the calls that need the data."""
+        todo = [u for u in dict.fromkeys(urls) if not (self.cache / hashlib.sha1(u.encode()).hexdigest()).exists()]
+        if not todo:
+            return
+
+        def get(u):
+            try:
+                self._get(u)
+            except Exception:
+                pass
+
+        with ThreadPoolExecutor(workers) as pool:
+            list(pool.map(get, todo))
+
+    @staticmethod
+    def banner_url(banner_id: str) -> str:
+        return f'{API}/bnrs/{urllib.parse.quote(banner_id)}'
+
+    @staticmethod
+    def picture_url(path: str) -> str:
+        return path if path.startswith('http') else API + path
+
+    @staticmethod
+    def search_url(**params) -> str:
+        return f'{API}/bnrs?{urllib.parse.urlencode(params, doseq=True)}'
+
     def banner(self, banner_id: str) -> dict:
-        return json.loads(self._get(f'{API}/bnrs/{urllib.parse.quote(banner_id)}'))
+        return json.loads(self._get(self.banner_url(banner_id)))
 
     def picture(self, path: str) -> Image.Image:
         """A banner picture by its `picture` path (/bnrs/pictures/…)."""
         from io import BytesIO
-        url = path if path.startswith('http') else API + path
-        return Image.open(BytesIO(self._get(url))).convert('RGB')
+        return Image.open(BytesIO(self._get(self.picture_url(path)))).convert('RGB')
 
     def search(self, **params) -> list[dict]:
         """GET /bnrs with query parameters (e.g. minLatitude…, query=, limit=)."""
-        qs = urllib.parse.urlencode(params, doseq=True)
-        return json.loads(self._get(f'{API}/bnrs?{qs}'))
+        return json.loads(self._get(self.search_url(**params)))
 
 
 def entry(b: dict) -> dict:

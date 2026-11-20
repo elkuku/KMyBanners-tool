@@ -52,7 +52,9 @@ jobs:
         uses: actions/cache@v6
         with:
           path: ${{ runner.temp }}/bannergress
-          key: bannergress-${{ hashFiles('done.json', 'capture/**') }}
+          # A new key every run: it restores the newest cache and always saves what this build downloaded
+          # (a key from the repo's files matched before the build stitched the inbox, so nothing was saved)
+          key: bannergress-${{ github.run_id }}
           restore-keys: bannergress-
       - name: Build the page
         id: build
