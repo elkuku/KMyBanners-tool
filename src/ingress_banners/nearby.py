@@ -11,6 +11,7 @@ from .bannergress import Bannergress
 
 RADIUS = 0.1     # degrees of latitude around a start point (~11 km)
 PER_POINT = 40   # the closest banners there
+NEIGHBOURS = 2   # matched banners above and below a row whose start points are searched
 
 
 def _search(bg: Bannergress, lat: float, lng: float) -> list[dict]:
@@ -39,9 +40,10 @@ def nearby_options(entries: list[dict], screen: list, bg: Bannergress, known: se
     for i, e in enumerate(entries):
         if e['id'] is not None:
             continue
-        points = [starts[j] for j in (next((j for j in range(i - 1, -1, -1) if j in starts), None),
-                                      next((j for j in range(i + 1, len(entries)) if j in starts), None))
-                  if j is not None]
+        # the [NEIGHBOURS] nearest matched banners above and below (one may be in another city)
+        above = [j for j in range(i - 1, -1, -1) if j in starts][:NEIGHBOURS]
+        below = [j for j in range(i + 1, len(entries)) if j in starts][:NEIGHBOURS]
+        points = [starts[j] for j in above + below]
         found: dict[str, dict] = {}
         for lat, lng in dict.fromkeys(points):
             try:
