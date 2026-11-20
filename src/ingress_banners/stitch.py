@@ -12,12 +12,15 @@ from __future__ import annotations
 import numpy as np
 from PIL import Image
 
-from .grid import normalize
+from .grid import header_end, normalize
 
-# Content band of a 1080 x 2400 screenshot (scaled for other heights by the same width factor)
-TOP = 140      # below the status bar
-HEADER = 410   # below the header line (y 390-392) and its slight fade, for every shot but the first
-BOTTOM = 370   # above the fade-out, the close button and the navigation bar (from the bottom)
+# The content band, found from the header's line in each shot (phones differ in their status bar and the
+# header's place); the numbers in brackets are a Pixel 6a's (1080 x 2400), used when no line is found.
+ABOVE_LINE = 250  # the first shot keeps this much above the line: the title and the agent name  [TOP = 140]
+BELOW_LINE = 18   # the others start this far below it, after a slight fade under the line      [HEADER = 410]
+TOP = 140
+HEADER = 410
+BOTTOM = 370      # above the fade-out, the close button and the navigation bar (from the bottom)
 SAMPLE = 4     # compare every 4th pixel
 
 
@@ -51,8 +54,16 @@ def offset(prev: np.ndarray, nxt: np.ndarray, min_overlap: int = 250) -> tuple[i
     return best
 
 
-def stitch(shots: list[Image.Image], top: int = TOP, header: int = HEADER, bottom: int = BOTTOM,
-           max_diff: float = 6.0) -> Image.Image:
+def band_top(im: Image.Image, first: bool) -> int:
+    """Where a shot's content starts: from its header line, else the Pixel 6a's numbers."""
+    end = header_end(im, fallback=-1)  # the line's last row + 3
+    if end < 0:
+        return TOP if first else HEADER
+    line = end - 3
+    return max(0, line - ABOVE_LINE) if first else line + BELOW_LINE
+
+
+def stitch(shots: list[Image.Image], bottom: int = BOTTOM, max_diff: float = 6.0) -> Image.Image:
     """One long image from screenshots in scroll order (top of the list first).
 
     The first shot keeps everything below the status bar (the view's header); later shots add
@@ -61,7 +72,7 @@ def stitch(shots: list[Image.Image], top: int = TOP, header: int = HEADER, botto
     if not shots:
         raise StitchError('no screenshots')
     ims = [normalize(s) for s in shots]
-    bands = [im.crop((0, top if k == 0 else header, im.width, im.height - bottom)) for k, im in enumerate(ims)]
+    bands = [im.crop((0, band_top(im, k == 0), im.width, im.height - bottom)) for k, im in enumerate(ims)]
     parts = [bands[0]]
     total = bands[0].height
     for k in range(1, len(bands)):

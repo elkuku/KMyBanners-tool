@@ -55,9 +55,11 @@ Results:
 - Fixed on the way: the header line is now found as the first thin bright line (a slice through bright
   medals, e.g. the Cygnus row, also looks like a line).
 
-Open: other phone sizes (the bands are fixed in px at 1080 wide — check a 20:9 and a 16:9 phone, or find
-the header line and the fade per shot instead of fixed numbers) and other app languages (only the title
-text changes). For agents: the app should say "scroll about half a screen, wait for the pictures".
+Other phones (2026-11-19): the band now starts from the header line found in each shot (the first
+shot keeps 250 px above it, the others start 18 px below it), so a different status bar or header place
+doesn't matter; tested with status bars of 100/140/190 px and a 1440 px wide phone (synthetic), and the
+Pixel 6a shots stitch to the same rows. Still fixed: the fade at the bottom (370 px at 1080 wide). Open:
+a real capture on another phone, and other app languages (only the title text changes). For agents: the app should say "scroll about half a screen, wait for the pictures".
 
 ## 3. GitHub — works, with the `public_repo` scope only
 
