@@ -30,7 +30,7 @@
 </head>
 <body>
 
-<header class="top"><div class="top-in"><h1>{{agent}}'s <span>Banners</span></h1><div class="stats" id="stats"></div></div></header>
+<header class="top"><div class="top-in"><h1>{{agent}}'s <span>Banners</span></h1><div class="stats" id="stats"></div><div class="bar"><input id="q" type="search" placeholder="Search title, place, id or note" aria-label="Search banners"><span class="count" id="count"></span></div></div></header>
 <div class="wrap">
   <section class="shotbox" aria-label="Mission medal screenshot">
     <h2>Mission medals in Ingress</h2>
@@ -44,10 +44,6 @@
       <div class="regions" id="regions"></div>
     </div>
     <h2>Every banner</h2>
-    <div class="bar">
-      <input id="q" type="search" placeholder="Search title, place, id or note" aria-label="Search banners">
-      <span class="count" id="count"></span>
-    </div>
     <div class="chips" id="chips" role="group" aria-label="Filter by analysis"></div>
     <div class="scroller" id="scroller">
       <table>

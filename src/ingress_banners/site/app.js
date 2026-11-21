@@ -52,6 +52,9 @@ const missionCount=B.reduce((a,b)=>a+b.count,0), specops=SPECOPS.find(([n])=>mis
 const onyx=Math.floor(missionCount/SPECOPS[0][0]);
 // Rows still to check are not counted as banners (their missions are)
 const toCheck=B.filter(b=>b.status==='review').length;
+// --hh: the fixed header's height (one row on wide screens, the search in a row of its own on narrow ones)
+const topIn=document.querySelector('.top-in');
+new ResizeObserver(()=>document.documentElement.style.setProperty('--hh',topIn.offsetHeight+'px')).observe(topIn);
 document.getElementById('stats').innerHTML=[[B.filter(b=>!b.single&&b.status!=='review').length,'banners'],[missionCount,'missions'],
   ...(toCheck?[[toCheck,'to check']]:[])]
   .map(([n,l])=>`<div><b>${n.toLocaleString()}</b><small>${l}</small></div>`).join('')
