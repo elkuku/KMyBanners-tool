@@ -131,6 +131,7 @@ def analyse(im: Image.Image, done: list[dict], corrections: list[dict], bg: Bann
     # so it stays) applies only to the row at that place
     fixed = [(fp_decode(c['fp']), c) for c in corrections if c.get('fp')]
     for m in ms:
+        auto = (m.id, m.dist) if m.id else None
         end = len(rows) - 1 - m.row
         near = [(match.row_distance(screen[m.row], fp), c) for fp, c in fixed if c.get('end') in (None, end)]
         if not near:
@@ -141,9 +142,40 @@ def analyse(im: Image.Image, done: list[dict], corrections: list[dict], bg: Bann
                 m.id = 'single:' + (c.get('name') or 'Single missions')
             else:
                 m.id = c.get('id') or ('medal:' + (c.get('name') or 'Unknown'))
+                if not c.get('id'):
+                    m.overridden = auto
             m.dist = d
     entries = match.group(ms)
     return rows, screen, entries
+
+
+def _norm(s: str | None) -> str:
+    """A title to compare: lower case, letters and digits only ("#SecondSunday 2026-4" = "secondsunday 2026 4")."""
+    return ' '.join(''.join(ch if ch.isalnum() else ' ' for ch in (s or '').lower()).split())
+
+
+def outdated_choices(entries: list[dict], done: list[dict]) -> dict[int, list[dict]]:
+    """Rows the agent marked "not on Bannergress" whose banner seems to be on Bannergress by now: a banner of the
+    done list without medals of its own that the pictures matched to the row before the choice won, or whose title
+    is the row's name. Entry index -> those done list banners (closest first)."""
+    claimed = {e['id'] for e in entries if e['id']}
+    free = {d['id']: d for d in done if d['id'] not in claimed}
+    by_title = {}
+    for d in free.values():
+        by_title.setdefault(_norm(d['title']), []).append(d)
+    found = {}
+    for i, e in enumerate(entries):
+        if not (e['id'] or '').startswith('medal:'):
+            continue
+        hits = {}
+        for bid, dist in e.get('overridden', []):
+            if bid in free:
+                hits[bid] = min(dist, hits.get(bid, 1.0))
+        for d in by_title.get(_norm(e['id'][6:]), []) if _norm(e['id'][6:]) else []:
+            hits.setdefault(d['id'], 0.0)
+        if hits:
+            found[i] = [dict(free[bid], dist=round(dist, 3)) for bid, dist in sorted(hits.items(), key=lambda x: x[1])]
+    return found
 
 
 # --- output ------------------------------------------------------------------------------------
@@ -232,6 +264,7 @@ def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) 
     rows, screen, entries = analyse(im, done, corr.get('rows', []), bg)
     bg.prefetch(bg.banner_url(e['id']) for e in entries if e['id'] and not e['id'].startswith(('medal:', 'single:')))
     nearby = nearby_options(entries, screen, bg, {d['id'] for d in done})
+    outdated = outdated_choices(entries, done)
 
     if out.exists():
         shutil.rmtree(out)
@@ -256,6 +289,14 @@ def build_site(repo: Path, out: Path, url: str = '', cache: Path | None = None) 
         elif e['id'] and not e['id'].startswith('medal:'):
             b.update({'status': 'match', 'score': round(max(e['dist']), 3)})
             b.update(entry(bg.banner(e['id'])))
+        elif e['id'] and i in outdated:
+            # Marked "not on Bannergress", but a banner of the done list looks like it: let the agent check
+            sug = outdated[i]
+            options = [{'id': d['id'], 'dist': d['dist'], 'title': d['title'], 'missions': d['missions'],
+                        'picture': d['picture']} for d in sug][:6]
+            b.update({'status': 'review', 'score': sug[0]['dist'], 'name': e['id'][6:], 'options': options,
+                      'warning': f'Marked "not on Bannergress" as "{e["id"][6:]}", but "{sug[0]["title"]}" on the done list '
+                                 'looks like it and has no medals: pick the banner in the app.'})
         elif e['id']:
             b.update({'status': 'none', 'name': e['id'][6:]})
         else:

@@ -21,6 +21,9 @@ class RowMatch:
     dist: float
     second: float  # distance of the best other banner (how sure the match is)
     options: list[tuple[str, float]] = field(default_factory=list)  # the closest banners, for the agent to pick from
+    # what the pictures matched before the agent's "not on Bannergress" choice won (id, distance): the banner
+    # may be on Bannergress by now
+    overridden: tuple[str, float] | None = None
 
 
 def row_distance(a: np.ndarray, b: np.ndarray) -> float:
@@ -80,6 +83,8 @@ def group(matches: list[RowMatch]) -> list[dict]:
         e['rows'].append(m.row)
         e['dist'].append(m.dist)
         e['second'].append(m.second)
+        if m.overridden:
+            e.setdefault('overridden', []).append(m.overridden)
     return entries
 
 
