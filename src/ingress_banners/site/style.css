@@ -40,7 +40,21 @@ h1 span{background:linear-gradient(90deg,var(--enl),var(--res));-webkit-backgrou
 .mark{position:absolute;left:0;right:0;border:2px solid transparent;border-radius:6px;cursor:pointer;padding:0;background:none}
 .mark span{position:absolute;left:2px;top:2px;font:600 10px/1 var(--mono);padding:3px 4px;border-radius:3px;background:rgba(0,0,0,.75);color:var(--st,var(--fg))}
 .mark:hover{border-color:color-mix(in srgb,var(--st) 60%,transparent)}
+/* Not found by the search or filter: a dark veil over the medals */
+.mark.dim{background:rgba(0,0,0,.72)}
+.mark.dim span{opacity:.5}
 .mark.sel{border-color:var(--st);background:color-mix(in srgb,var(--st) 14%,transparent)}
+/* "Only the banners found": their medals one under the other instead of the whole screenshot */
+.only{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.only input{accent-color:var(--enl);margin:0}
+.minis{display:grid;gap:6px;padding:6px}
+.mini{position:relative;display:block;padding:4px;border:2px solid transparent;border-radius:6px;background:none;cursor:pointer}
+.mini img{display:block;width:100%;height:auto}
+.mini span{position:absolute;left:2px;top:2px;font:600 10px/1 var(--mono);padding:3px 4px;border-radius:3px;background:rgba(0,0,0,.75);color:var(--st,var(--fg))}
+.mini:hover{border-color:color-mix(in srgb,var(--st) 60%,transparent)}
+.mini.sel{border-color:var(--st);background:color-mix(in srgb,var(--st) 14%,transparent)}
+.mini:focus-visible{outline:2px solid var(--res);outline-offset:-2px}
+.minis-none{margin:0;padding:12px;color:var(--muted);font-size:13px}
 .mark:focus-visible{outline:2px solid var(--res);outline-offset:-2px}
 
 /* Table */

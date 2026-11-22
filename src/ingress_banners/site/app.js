@@ -116,8 +116,19 @@ function render(){
   document.getElementById('count').textContent=`${shown.length} of ${items.length}`;
   document.getElementById('body').innerHTML=shown.map(it=>`<tr id="r-${it.key}" class="c-${it.cat}${it.key===sel?' sel':''}" data-k="${it.key}">${COLS.map(([,,c,f])=>`<td class="${c}">${f(it)}</td>`).join('')}</tr>${more(it)}`).join('');
   head.querySelectorAll('th[data-k]').forEach(th=>th.setAttribute('aria-sort',th.dataset.k===sort.k?(sort.dir>0?'ascending':'descending'):'none'));
-  const vis=new Set(shown.map(it=>it.key));
-  shotIn.querySelectorAll('.mark').forEach(m=>m.style.opacity=vis.has(m.dataset.k)?'':'.25');
+  const vis=new Set(shown.map(it=>it.key)), active=filter!=='all'||!!q;
+  // Searching or filtering: the other banners are dimmed in the screenshot, or left out ("Only the banners found":
+  // just the medals of the banners found, newest first)
+  shotIn.querySelectorAll('.mark').forEach(m=>m.classList.toggle('dim',active&&!vis.has(m.dataset.k)));
+  document.getElementById('onlyBox').hidden=!active;
+  const collapsed=active&&document.getElementById('only').checked;
+  shotIn.hidden=collapsed; minis.hidden=!collapsed;
+  if(collapsed){
+    const found=shown.filter(it=>it.img).sort((a,b)=>a.i-b.i);
+    minis.innerHTML=found.map(it=>`<button type="button" class="mini c-${it.cat}${it.key===sel?' sel':''}" data-k="${it.key}" title="${no(it.i)?'#'+no(it.i)+' ':''}${esc(it.title||it.name)} · ${CAT[it.cat][0]}">`+
+      `<img src="${it.img}" width="330" height="${55*it.rows.reduce((n,[a,b])=>n+(b??a)-a+1,0)}" alt="" loading="lazy">${no(it.i)?`<span>#${no(it.i)}</span>`:''}</button>`).join('')
+      ||'<p class="minis-none">No medals of the banners found.</p>';
+  }
   for(const [k,m] of markers) vis.has(k)?dots.addLayer(m):dots.removeLayer(m);
 }
 head.addEventListener('click',e=>{const th=e.target.closest('th[data-k]');if(!th)return;
@@ -130,16 +141,19 @@ chips.innerHTML=[['all','All',items.length],...CATORDER.filter(c=>counts[c]).map
 chips.addEventListener('click',e=>{const b=e.target.closest('.chip');if(!b)return;filter=b.dataset.f;
   chips.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c===b));render()});
 document.getElementById('q').addEventListener('input',render);
+const minis=document.getElementById('minis');
+document.getElementById('only').addEventListener('change',()=>{render();document.getElementById('shot').scrollTop=0});
 
 const smooth=()=>matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth';
 function select(key,from){
   sel=key;
-  document.querySelectorAll('tr.sel,.mark.sel').forEach(x=>x.classList.remove('sel'));
+  document.querySelectorAll('tr.sel,.mark.sel,.mini.sel').forEach(x=>x.classList.remove('sel'));
   let row=document.getElementById('r-'+key);
   if(!row&&from==='shot'){filter='all';document.getElementById('q').value='';chips.querySelectorAll('.chip').forEach(c=>c.setAttribute('aria-pressed',c.dataset.f==='all'));render();row=document.getElementById('r-'+key)}
   row?.classList.add('sel');
   const marks=shotIn.querySelectorAll(`.mark[data-k="${key}"]`), mark=marks[0];
   marks.forEach(m=>m.classList.add('sel'));
+  const mini=minis.querySelector(`.mini[data-k="${key}"]`); mini?.classList.add('sel');
   if(from==='shot'&&row){const sc=document.getElementById('scroller');
     // The table can't scroll past its end, so rows near the end stay lower down
     const top=Math.max(0,Math.min(row.offsetTop-sc.querySelector('thead').offsetHeight-8,sc.scrollHeight-sc.clientHeight));
@@ -150,8 +164,8 @@ function select(key,from){
     if(by) window.scrollBy({top:by,behavior:smooth()})}
   const dot=markers.get(key);
   if(dot){if(!dots.hasLayer(dot))dots.addLayer(dot);map.setView(dot.getLatLng(),Math.max(map.getZoom(),12));dot.openPopup()}
-  if(from==='table'&&mark){const sh=document.getElementById('shot');
-    sh.scrollTo({top:mark.offsetTop-40,behavior:smooth()})}
+  if(from==='table'){const sh=document.getElementById('shot'), to=!minis.hidden?mini:mark;
+    if(to) sh.scrollTo({top:to.offsetTop-40,behavior:smooth()})}
 }
 // Map of the start points, colored like the analysis
 const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
@@ -200,6 +214,7 @@ region('All',all);
 Object.entries(regions).filter(([c])=>c!=='Done list only').sort((a,b)=>b[1].length-a[1].length).forEach(([c,p])=>region(`${c} · ${p.length}`,L.latLngBounds(p),ISO[c]));
 
 shotIn.addEventListener('click',e=>{const m=e.target.closest('.mark');if(m)select(m.dataset.k,'shot')});
+minis.addEventListener('click',e=>{const m=e.target.closest('.mini');if(m)select(m.dataset.k,'shot')});
 document.getElementById('body').addEventListener('click',e=>{
   const b=e.target.closest('.more-btn');
   if(b){const k=b.closest('tr').dataset.k, open=!expanded.has(k);
